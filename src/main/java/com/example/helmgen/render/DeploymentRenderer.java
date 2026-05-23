@@ -13,61 +13,54 @@ public class DeploymentRenderer {
 
     public String render(DeploymentSpec deployment) {
         StringBuilder sb = new StringBuilder();
-        sb.append("""
-                apiVersion: apps/v1
-                kind: Deployment
-                metadata:
-                  name: {{ include "%1$s.fullname" . }}
-                  labels:
-                    {{- include "%1$s.labels" . | nindent 4 }}
-                spec:
-                  replicas: %2$s
-                  selector:
-                    matchLabels:
-                      {{- include "%1$s.selectorLabels" . | nindent 6 }}
-                  template:
-                    metadata:
-                      labels:
-                        {{- include "%1$s.selectorLabels" . | nindent 8 }}
-                    spec:
-                      containers:
-                """.formatted(chartName, deployment.replicas().helmExpression()));
+
+        line(sb, 0, "apiVersion: apps/v1");
+        line(sb, 0, "kind: Deployment");
+        line(sb, 0, "metadata:");
+        line(sb, 2, "name: {{ include \"%s.fullname\" . }}".formatted(chartName));
+        line(sb, 2, "labels:");
+        line(sb, 4, "{{- include \"%s.labels\" . | nindent 4 }}".formatted(chartName));
+        line(sb, 0, "spec:");
+        line(sb, 2, "replicas: %s".formatted(deployment.replicas().helmExpression()));
+        line(sb, 2, "selector:");
+        line(sb, 4, "matchLabels:");
+        line(sb, 6, "{{- include \"%s.selectorLabels\" . | nindent 6 }}".formatted(chartName));
+        line(sb, 2, "template:");
+        line(sb, 4, "metadata:");
+        line(sb, 6, "labels:");
+        line(sb, 8, "{{- include \"%s.selectorLabels\" . | nindent 8 }}".formatted(chartName));
+        line(sb, 4, "spec:");
+        line(sb, 6, "containers:");
 
         for (ContainerSpec container : deployment.containers()) {
             renderContainer(sb, container);
         }
+
         return sb.toString();
     }
 
     private void renderContainer(StringBuilder sb, ContainerSpec container) {
-        sb.append("""
-                        - name: %s
-                          image: "%s:%s"
-                          imagePullPolicy: IfNotPresent
-                """.formatted(
-                container.name(),
+        line(sb, 8, "- name: %s".formatted(container.name()));
+        line(sb, 10, "image: \"%s:%s\"".formatted(
                 container.imageRepository().helmExpression(),
                 container.imageTag().helmExpression()
         ));
+        line(sb, 10, "imagePullPolicy: IfNotPresent");
 
         if (!container.ports().isEmpty()) {
-            sb.append("          ports:\n");
+            line(sb, 10, "ports:");
             for (var port : container.ports()) {
-                sb.append("""
-                            - name: %s
-                              containerPort: %s
-                              protocol: TCP
-                        """.formatted(port.name(), port.containerPort().helmExpression()));
+                line(sb, 12, "- name: %s".formatted(port.name()));
+                line(sb, 14, "containerPort: %s".formatted(port.containerPort().helmExpression()));
+                line(sb, 14, "protocol: TCP");
             }
         }
 
         if (!container.env().isEmpty()) {
-            sb.append("          env:\n");
+            line(sb, 10, "env:");
             for (var env : container.env()) {
-                sb.append("""
-                            - name: %s
-                              value: %s
-                        """.formatted(env.name(), env.value().helmQuotedExpression()));
+                line(sb, 12, "- name: %s".formatted(env.name()));
+                line(sb, 14, "value: %s".formatted(env.value().helmQuotedExpression()));
             }
         }
 
@@ -77,36 +70,41 @@ public class DeploymentRenderer {
     }
 
     private void renderOptionalProbe(StringBuilder sb, String name, ProbeSpec probe) {
-        if (probe == null) return;
-        sb.append("          ").append(name).append(":\n");
-        renderProbe(sb, probe, 12);
+        if (probe == null) {
+            return;
+        }
+        line(sb, 10, name + ":");
+        renderProbe(sb, probe);
     }
 
-    private void renderProbe(StringBuilder sb, ProbeSpec probe, int indent) {
-        String s = " ".repeat(indent);
+    private void renderProbe(StringBuilder sb, ProbeSpec probe) {
         switch (probe.type()) {
-            case HTTP_GET -> sb.append("""
-                    %shttpGet:
-                    %s  path: %s
-                    %s  port: %s
-                    %sinitialDelaySeconds: 5
-                    %speriodSeconds: 10
-                    """.formatted(s, s, probe.path(), s, probe.portName(), s, s));
-            case TCP_SOCKET -> sb.append("""
-                    %stcpSocket:
-                    %s  port: %d
-                    %sinitialDelaySeconds: 5
-                    %speriodSeconds: 10
-                    """.formatted(s, s, probe.portNumber(), s, s));
+            case HTTP_GET -> {
+                line(sb, 12, "httpGet:");
+                line(sb, 14, "path: %s".formatted(probe.path()));
+                line(sb, 14, "port: %s".formatted(probe.portName()));
+                line(sb, 12, "initialDelaySeconds: 5");
+                line(sb, 12, "periodSeconds: 10");
+            }
+            case TCP_SOCKET -> {
+                line(sb, 12, "tcpSocket:");
+                line(sb, 14, "port: %d".formatted(probe.portNumber()));
+                line(sb, 12, "initialDelaySeconds: 5");
+                line(sb, 12, "periodSeconds: 10");
+            }
             case EXEC -> {
-                sb.append(s).append("exec:\n");
-                sb.append(s).append("  command:\n");
+                line(sb, 12, "exec:");
+                line(sb, 14, "command:");
                 for (String item : probe.command()) {
-                    sb.append(s).append("    - ").append(YamlUtil.quote(item)).append("\n");
+                    line(sb, 16, "- " + YamlUtil.quote(item));
                 }
-                sb.append(s).append("initialDelaySeconds: 5\n");
-                sb.append(s).append("periodSeconds: 10\n");
+                line(sb, 12, "initialDelaySeconds: 5");
+                line(sb, 12, "periodSeconds: 10");
             }
         }
+    }
+
+    private static void line(StringBuilder sb, int indent, String value) {
+        sb.append(" ".repeat(indent)).append(value).append('\n');
     }
 }

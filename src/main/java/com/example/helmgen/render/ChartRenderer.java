@@ -30,5 +30,26 @@ public class ChartRenderer {
         for (var configMap : chart.configMaps()) {
             Files.writeString(outputDir.resolve("templates/" + YamlUtil.sanitizeFileName(configMap.name()) + "-configmap.yaml"), configMapRenderer.render(configMap));
         }
+
+
+        for (var k8sTemplate : chart.k8sTemplates()) {
+            Path templatePath = outputDir.resolve("templates").resolve(k8sTemplate.fileName()).normalize();
+            Path templatesDir = outputDir.resolve("templates").normalize();
+            if (!templatePath.startsWith(templatesDir)) {
+                throw new IOException("Kubernetes template escapes templates directory: " + k8sTemplate.fileName());
+            }
+            Files.createDirectories(templatePath.getParent());
+            Files.writeString(templatePath, k8sTemplate.render());
+        }
+
+        for (var rawTemplate : chart.rawTemplates()) {
+            Path templatePath = outputDir.resolve("templates").resolve(rawTemplate.fileName()).normalize();
+            Path templatesDir = outputDir.resolve("templates").normalize();
+            if (!templatePath.startsWith(templatesDir)) {
+                throw new IOException("Raw template escapes templates directory: " + rawTemplate.fileName());
+            }
+            Files.createDirectories(templatePath.getParent());
+            Files.writeString(templatePath, rawTemplate.content());
+        }
     }
 }

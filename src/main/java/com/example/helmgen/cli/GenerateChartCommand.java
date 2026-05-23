@@ -20,9 +20,11 @@ public class GenerateChartCommand implements CommandLineRunner {
         String output = option(args, "--output", "target/generated-chart");
 
         var helmChart = switch (chart.toLowerCase()) {
+            case "debug-postgres", "postgres-debug", "debug-postgres-typed" -> sampleChartFactory.createDebugPostgresChart();
+            case "debug-postgres-raw", "postgres-debug-raw" -> sampleChartFactory.createDebugPostgresRawChart();
             case "pgpool" -> sampleChartFactory.createPgpoolChart();
             case "nginx" -> sampleChartFactory.createNginxChart();
-            default -> throw new IllegalArgumentException("Unsupported chart: " + chart + ". Use nginx or pgpool.");
+            default -> throw new IllegalArgumentException("Unsupported chart: " + chart + ". Use nginx, pgpool, debug-postgres, or debug-postgres-raw.");
         };
 
         Path outputDir = Path.of(output);

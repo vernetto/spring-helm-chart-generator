@@ -105,3 +105,80 @@ Good next additions would be:
 - affinity / tolerations / nodeSelector
 - `values.schema.json`
 - Maven plugin
+
+## Generate the uploaded debug Postgres/Pgpool chart
+
+This project also contains a pragmatic `RawTemplate` escape hatch. It copies a Kubernetes YAML or Helm template into the generated chart's `templates/` directory.
+
+The uploaded `debug.yaml` has many resources that the small typed model does not support yet: `StatefulSet`, `PodDisruptionBudget`, `Secret`, `Role`, `RoleBinding`, `ServiceAccount`, PVC templates, init containers, advanced security contexts, affinity, tolerations, and so on.
+
+For that reason, the first implementation generates this chart using a raw template:
+
+```bash
+mvn clean package
+java -jar target/spring-helm-chart-generator-0.1.0-SNAPSHOT.jar --chart debug-postgres --output target/charts/debug-postgres
+helm lint ./target/charts/debug-postgres
+helm template demo ./target/charts/debug-postgres
+```
+
+The Java entry point is:
+
+```java
+sampleChartFactory.createDebugPostgresChart()
+```
+
+The raw source template is stored in:
+
+```text
+src/main/resources/chart-templates/debug-postgres.yaml
+```
+
+The next natural refactoring step is to replace this raw YAML escape hatch with typed Java classes for `StatefulSetSpec`, `SecretSpec`, `PodDisruptionBudgetSpec`, `RoleSpec`, `RoleBindingSpec`, `ServiceAccountSpec`, `VolumeSpec`, `VolumeClaimTemplateSpec`, `InitContainerSpec`, `SecurityContextSpec`, `AffinitySpec`, and `TolerationSpec`.
+
+## Typed debug-postgres chart
+
+The previous `debug-postgres` example used a raw YAML template copied from `debug.yaml`.
+This version adds a more serious typed Java implementation:
+
+```text
+src/main/java/com/example/helmgen/typed/K8sTemplate.java
+src/main/java/com/example/helmgen/typed/Y.java
+src/main/java/com/example/helmgen/cli/DebugPostgresTypedFactory.java
+```
+
+Generate the typed PostgreSQL/Pgpool chart:
+
+```bash
+mvn clean package
+java -jar target/spring-helm-chart-generator-0.1.0-SNAPSHOT.jar --chart debug-postgres --output target/charts/debug-postgres
+helm lint ./target/charts/debug-postgres
+helm template demo ./target/charts/debug-postgres
+```
+
+The raw fallback is still available for comparison:
+
+```bash
+java -jar target/spring-helm-chart-generator-0.1.0-SNAPSHOT.jar --chart debug-postgres-raw --output target/charts/debug-postgres-raw
+helm template demo ./target/charts/debug-postgres-raw
+```
+
+The typed implementation now builds the uploaded manifest from Java objects instead of reading the manifest file as a template. It covers the resources present in the uploaded file:
+
+- PodDisruptionBudget
+- ServiceAccount
+- Secret
+- ConfigMap
+- Role
+- RoleBinding
+- Service
+- Deployment
+- StatefulSet
+- initContainers
+- containers
+- probes
+- volumes
+- volumeClaimTemplates
+- securityContext
+- nodeSelector, tolerations, affinity
+
+This is still an MVP DSL. The next improvement would be replacing parts of the generic `Y.m(...)`/`Y.l(...)` map DSL with dedicated high-level classes such as `StatefulSetSpec`, `PodSpec`, `ContainerSpec`, `VolumeSpec`, `RbacSpec`, and `PersistentVolumeClaimTemplateSpec`.

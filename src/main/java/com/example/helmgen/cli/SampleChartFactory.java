@@ -2,13 +2,18 @@ package com.example.helmgen.cli;
 
 import com.example.helmgen.ChartMetadata;
 import com.example.helmgen.HelmChart;
+import com.example.helmgen.RawTemplate;
 import com.example.helmgen.k8s.ConfigMapSpec;
 import com.example.helmgen.k8s.ContainerSpec;
 import com.example.helmgen.k8s.DeploymentSpec;
 import com.example.helmgen.k8s.ProbeSpec;
 import com.example.helmgen.k8s.ServiceSpec;
 import com.example.helmgen.values.ValueRef;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 @Component
 public class SampleChartFactory {
@@ -79,4 +84,24 @@ public class SampleChartFactory {
                 .addDeployment(deployment)
                 .addService(service);
     }
+    public HelmChart createDebugPostgresChart() {
+        return DebugPostgresTypedFactory.create();
+    }
+
+    public HelmChart createDebugPostgresRawChart() {
+        String rawYaml = readClasspathText("chart-templates/debug-postgres.yaml");
+
+        return new HelmChart(ChartMetadata.application("postgres", "18.3.0", "18.3"))
+                .addRawTemplate(RawTemplate.of("debug-postgres.yaml", rawYaml));
+    }
+
+    private String readClasspathText(String location) {
+        try {
+            var resource = new ClassPathResource(location);
+            return resource.getContentAsString(StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new IllegalStateException("Could not read classpath resource: " + location, e);
+        }
+    }
+
 }
