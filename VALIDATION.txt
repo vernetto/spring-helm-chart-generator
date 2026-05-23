@@ -1,0 +1,27 @@
+Validated in the container on 2026-05-23:
+
+1. Local dependency-free Gradle build:
+   gradle -b build-local.gradle clean build --no-daemon
+   Result: BUILD SUCCESSFUL
+
+2. Generator execution:
+   java -jar build/libs/spring-helm-chart-generator-0.2.0-SNAPSHOT.jar --chart debug-postgres --output build/charts/debug-postgres
+   Result: generated Chart.yaml, values.yaml, and 12 template YAML files.
+
+3. YAML parsing validation with Python/PyYAML:
+   Parsed all 12 rendered template files successfully:
+   - PodDisruptionBudget db-01-postgres
+   - ServiceAccount db-01-postgres
+   - Secret db-01-pgpool-postgres
+   - Secret db-01-postgres
+   - ConfigMap db-01-pgpool-postgres
+   - ConfigMap db-01-postgres
+   - Role db-01-postgres
+   - RoleBinding db-01-postgres
+   - Service db-01-postgres-hl
+   - Service db-01-postgres
+   - Deployment db-01-pgpool-postgres
+   - StatefulSet db-01-postgres
+
+Limitation:
+The container cannot resolve services.gradle.org or repo.maven.apache.org, so I could not run the full Spring Boot 4 Gradle wrapper build here. The normal build.gradle is configured for Spring Boot 4.0.6 and Gradle wrapper 8.14.3.
